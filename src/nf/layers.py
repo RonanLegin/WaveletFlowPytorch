@@ -59,28 +59,53 @@ def unsqueeze2d(input, factor):
     return x
 
 
-class _ActNorm(nn.Module):
-    """
-    Activation Normalization
-    Initialize the bias and scale with a given minibatch,
-    so that the output per-channel have zero mean and unit variance for that.
-    After initialization, `bias` and `logs` will be trained as parameters.
-    """
+# class _ActNorm(nn.Module):
+#     """
+#     Activation Normalization
+#     Initialize the bias and scale with a given minibatch,
+#     so that the output per-channel have zero mean and unit variance for that.
+#     After initialization, `bias` and `logs` will be trained as parameters.
+#     """
 
+#     def __init__(self, num_features, scale=1.0):
+#         super().__init__()
+#         # register mean and scale
+#         size = [1, num_features, 1, 1]
+#         self.bias = nn.Parameter(torch.zeros(*size))
+#         self.logs = nn.Parameter(torch.zeros(*size))
+#         self.num_features = num_features
+#         self.scale = scale
+#         self.inited = False
+
+#     def initialize_parameters(self, input):
+#         if not self.training:
+#             raise ValueError("In Eval mode, but ActNorm not inited")
+
+#         with torch.no_grad():
+#             bias = -torch.mean(input.clone(), dim=[0, 2, 3], keepdim=True)
+#             vars = torch.mean((input.clone() + bias) ** 2, dim=[0, 2, 3], keepdim=True)
+#             logs = torch.log(self.scale / (torch.sqrt(vars) + 1e-6))
+
+#             self.bias.data.copy_(bias.data)
+#             self.logs.data.copy_(logs.data)
+
+#             self.inited = True
+
+class _ActNorm(nn.Module):
     def __init__(self, num_features, scale=1.0):
         super().__init__()
-        # register mean and scale
         size = [1, num_features, 1, 1]
         self.bias = nn.Parameter(torch.zeros(*size))
         self.logs = nn.Parameter(torch.zeros(*size))
         self.num_features = num_features
         self.scale = scale
-        self.inited = False
+        
+        # register inited as a buffer so it persists in state_dict
+        self.register_buffer('inited', torch.tensor(False))
 
     def initialize_parameters(self, input):
         if not self.training:
             raise ValueError("In Eval mode, but ActNorm not inited")
-
         with torch.no_grad():
             bias = -torch.mean(input.clone(), dim=[0, 2, 3], keepdim=True)
             vars = torch.mean((input.clone() + bias) ** 2, dim=[0, 2, 3], keepdim=True)
@@ -88,8 +113,7 @@ class _ActNorm(nn.Module):
 
             self.bias.data.copy_(bias.data)
             self.logs.data.copy_(logs.data)
-
-            self.inited = True
+            self.inited.data.fill_(True)
 
     def _center(self, input, reverse=False):
         if reverse:

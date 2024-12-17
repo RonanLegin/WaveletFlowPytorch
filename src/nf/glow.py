@@ -59,13 +59,10 @@ class FlowStep(nn.Module):
         return z, logdet
 
     def reverse_flow(self, input, conditioning, logdet):
-
         # 1.coupling
         z, logdet = self.coupling(input, logdet, conditioning, reverse=True)
-
         # 2. permute
         z, logdet = self.flow_permutation(z, logdet, True)
-
         # 3. actnorm
         z, logdet = self.actnorm(z, logdet=logdet, reverse=True)
 
@@ -120,7 +117,6 @@ class Glow(nn.Module):
         self.y_classes = params.y_classes
         self.y_condition = params.y_condition
         self.learn_top = params.y_learn_top
-        
         # learned prior
         if self.learn_top:
             C = self.flow.output_shapes[-1][1]
@@ -146,7 +142,6 @@ class Glow(nn.Module):
 
         if self.learn_top:
             h = self.learn_top_fn(h)
-
         if self.y_condition:
             assert y_onehot is not None
             yp = self.project_ycond(y_onehot)

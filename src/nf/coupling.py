@@ -208,7 +208,7 @@ class Checkerboard(nn.Module):
         self.rescale = nn.utils.weight_norm(Rescale(in_channels))
 
     def get_param(self, x, conditioning):
-        self.mask = self.mask.to(x.get_device())
+        self.mask = self.mask.to(x.device)
         z1 = x * self.mask
         if conditioning is not None:
             z1_c = torch.cat([z1, conditioning], dim=1)
