@@ -57,7 +57,7 @@ class WaveletFlow(nn.Module):
                     low = dwt_components['low']
                     # Check if the channel dimension is 1; if so, double it
                     if self.cf.imShape[0] == 1:
-                        low = low.repeat(1, 2, 1, 1)  # This repeats the channel dimension
+                        low = low.repeat(1, 2, 1, 1)  # This repeats the channel dimension to avoid errors in the splitting of the coupling layer
                     res = flow.forward(low, conditioning=conditioning)
                 else:
                     dwt_components = self.dwt.forward(low_freq)
@@ -68,7 +68,7 @@ class WaveletFlow(nn.Module):
 
                 latents.append(res["latent"])
                 b, c, h, w = low_freq.shape
-                res["likelihood"] -= (c * h * w * torch.log(torch.tensor(0.5)) * (self.n_levels - level)) /  (math.log(2.0) * c * h * w)
+                #res["likelihood"] -= (c * h * w * torch.log(torch.tensor(0.5)) * (self.n_levels - level)) /  (math.log(2.0) * c * h * w)
                 #x = torch.abs(dwt_components['high'])
                 if partial_level != -1:
                     break 
