@@ -11,8 +11,9 @@ import numpy as np
 
 class FlowStep(nn.Module):
     def __init__(self, params, C, H, W, idx, conditional):
-        super().__init__()
+        super().__init__()        
         hidden_channels = params.hiddenChannels
+        scale_map = params.scale_map
         self.flow_permutation = params.perm
         self.flow_coupling = params.coupling
         self.actnorm = ActNorm2d(C, params.actNormScale)
@@ -30,7 +31,7 @@ class FlowStep(nn.Module):
 
         # 3. coupling
         if params.coupling == 'affine':
-            self.coupling = Affine(C, C, hidden_channels, conditional)
+            self.coupling = Affine(C, C, hidden_channels, conditional, scale_map)
         elif params.coupling == 'checker':
             self.coupling = Checkerboard(C, C, H, W, hidden_channels, conditional)
         elif params.coupling == 'checker3d':
@@ -157,7 +158,7 @@ class Glow(nn.Module):
     def normal_flow(self, x, conditioning, y_onehot):
         b, c, h, w = x.shape
 
-        x, logdet = uniform_binning_correction(x)
+        logdet = torch.zeros(b, requires_grad=True, device=x.device)
 
         z, objective = self.flow(x, conditioning, logdet=logdet, reverse=False)
         mean, logs = self.prior(x, y_onehot)
@@ -167,11 +168,10 @@ class Glow(nn.Module):
         else:
             y_logits = None
 
-        # Full objective - converted to bits per dimension
-        bpd = (-objective) / (math.log(2.0) * c * h * w)
-        return {"latent": z, "likelihood": bpd, "y_logits": y_logits}
+        likelihood = -objective
+        return {"latent": z, "likelihood": likelihood, "y_logits": y_logits}
 
-    def reverse_flow(self, z, conditioning, y_onehot, temperature):
+    def reverse_flow(self, z, conditioning, y_onehot, temperature): 
         with torch.no_grad():
             if z is None:
                 mean, logs = self.prior(z, y_onehot)

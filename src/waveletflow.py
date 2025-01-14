@@ -16,6 +16,7 @@ class WaveletFlow(nn.Module):
         self.dwt = Dwt(wavelet=self.wavelet)
         self.conditioning_network = cond_net
         self.cf = cf
+        
 
         if partial_level == -1 or partial_level == self.base_level:
             base_size = 2 ** self.base_level
@@ -68,7 +69,7 @@ class WaveletFlow(nn.Module):
                 latents.append(res["latent"])
                 b, c, h, w = low_freq.shape
                 res["likelihood"] -= (c * h * w * torch.log(torch.tensor(0.5)) * (self.n_levels - level)) /  (math.log(2.0) * c * h * w)
-                x = torch.abs(dwt_components['high'])
+                #x = torch.abs(dwt_components['high'])
                 if partial_level != -1:
                     break 
             

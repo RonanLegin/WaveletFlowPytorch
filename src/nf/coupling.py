@@ -7,9 +7,10 @@ import numpy as np
 
 
 class Affine(nn.Module):
-    def __init__(self, in_channels, out_channels, hidden_channels, conditional):
+    def __init__(self, in_channels, out_channels, hidden_channels, conditional, scale_map="exp"):
         super().__init__()
-        
+        self.scale_map = scale_map
+
         if out_channels % 2 != 0:
             out_channels += 1
             
@@ -26,22 +27,40 @@ class Affine(nn.Module):
         else:
             h = self.block(z1)
         s, t = split_feature(h, "cross")
-        s = torch.sigmoid(s + 2.0)
+        #s = torch.sigmoid(s + 2.0)
         return s, t, z1, z2
 
     def forward(self, x, logdet, conditioning=None, reverse=False):
         
         s, t, z1, z2 = self.get_param(x, conditioning)
         if reverse:
-            s = torch.sigmoid(s + 2.0)
-            z2 = z2 / s
-            z2 = z2 - t
-            logdet = -torch.sum(torch.log(s), dim=[1, 2, 3]) + logdet
+            if self.scale_map == "exp":
+                z2 = (z2 - t) * torch.exp(-s)
+                logdet = -torch.sum(s, dim=[1, 2, 3]) + logdet
+            elif self.scale_map == "sigmoid":
+                s = torch.sigmoid(s + 2)
+                z2 = (z2 - t) * s
+                logdet = torch.sum(torch.log(s), dim=[1, 2, 3]) + logdet
+            elif self.scale_map == "sigmoid_inv":
+                s = torch.sigmoid(s + 2)
+                z2 = (z2 - t) / s
+                logdet = -torch.sum(torch.log(s), dim=[1, 2, 3]) + logdet
+            else:
+                raise NotImplementedError("This scale map is not implemented.")
         else:
-            s, t, z1, z2 = self.get_param(x, conditioning)
-            z2 = z2 + t
-            z2 = z2 * s
-            logdet = torch.sum(torch.log(s), dim=[1, 2, 3]) + logdet
+            if self.scale_map == "exp":
+                z2 = z2 * torch.exp(s) + t
+                logdet = torch.sum(s, dim=[1, 2, 3]) + logdet
+            elif self.scale_map == "sigmoid":
+                s = torch.sigmoid(s + 2)
+                z2 = z2 / s + t
+                logdet = -torch.sum(torch.log(s), dim=[1, 2, 3]) + logdet
+            elif self.scale_map == "sigmoid_inv":
+                s = torch.sigmoid(s + 2)
+                z2 = z2 * s + t
+                logdet = torch.sum(torch.log(s), dim=[1, 2, 3]) + logdet
+            else:
+                raise NotImplementedError("This scale map is not implemented.")
         z = torch.cat((z1, z2), dim=1)
         return z, logdet
 

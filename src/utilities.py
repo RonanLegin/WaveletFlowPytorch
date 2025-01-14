@@ -28,31 +28,6 @@ def split_feature(tensor, type="split"):
     elif type == "cross":
         return tensor[:, 0::2, ...], tensor[:, 1::2, ...]
 
-def check_manual_seed(seed):
-    seed = seed or random.randint(1, 10000)
-    random.seed(seed)
-    torch.manual_seed(seed)
-
-    print("Using seed: {seed}".format(seed=seed))
-
-def standardize(x):
-    n_bits = 8
-    x = x * 255  # undo ToTensor scaling to [0,1]
-    n_bins = 2 ** n_bits
-    if n_bits < 8:
-        x = torch.floor(x / 2 ** (8 - n_bits))
-    x = x / n_bins - 0.5  # Scaled such that x lies in-between -0.5 and 0.5
-    return x
-
-
-def postprocess(x):
-    n_bits = 8
-    x = torch.clamp(x, -0.5, 0.5)
-    x += 0.5
-    x = x * 2 ** n_bits
-    return torch.clamp(x, 0, 255).byte()
-
-
 def to_attributes(var_in):
     """
     convert dictionary to object with keys as attributes
@@ -107,24 +82,6 @@ def compute_same_pad(kernel_size, stride):
     ), "Pass kernel size and stride both as int, or both as equal length iterable"
 
     return [((k - 1) * s + 1) // 2 for k, s in zip(kernel_size, stride)]
-
-
-def uniform_binning_correction(x, n_bits=8):
-    """Replaces x^i with q^i(x) = U(x, x + 1.0 / 256.0).
-    Args:
-        x: 4-D Tensor of shape (NCHW)
-        n_bits: optional.
-    Returns:
-        x: x ~ U(x, x + 1.0 / 256)
-        objective: Equivalent to -q(x)*log(q(x)).
-    """
-    b, c, h, w = x.size()
-    n_bins = 2 ** n_bits
-    chw = c * h * w
-    x += torch.zeros_like(x).uniform_(0, 1.0 / n_bins)
-
-    objective = -math.log(n_bins) * chw * torch.ones(b, requires_grad=True, device=x.device)
-    return x, objective
 
 
 def split_feature(tensor, type="split"):
